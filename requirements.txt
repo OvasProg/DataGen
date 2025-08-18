@@ -1,5 +1,0 @@
-Flask>=3.0
-gunicorn>=21.2
-faker>=25.0
-rstr>=3.2
-pytest>=8.2
