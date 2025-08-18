@@ -1,0 +1,23 @@
+services:
+  # --- Frontend: Static Site ---
+  - type: web
+    name: datagen-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: ""
+    staticPublishPath: .
+
+  # --- Backend: Flask API ---
+  - type: web
+    name: datagen-api
+    runtime: python
+    rootDir: api
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile -
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: CORS_ALLOW_ORIGIN
+        value: "*"

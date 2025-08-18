@@ -1,0 +1,719 @@
+openapi: 3.0.3
+info:
+  title: DataGen API
+  version: 1.0.0
+  summary: Fake data generator API
+  description: |
+    DataGen is a simple API that generates realistic fake datasets from a declarative schema.
+    It supports multiple output formats and basic constraints like min, max, regex, length, and uniqueness.
+
+    - Max rows per request: 10,000
+    - Supported output formats: json, csv, xml, html, sql
+    - Uniqueness is best-effort and may slow down generation; for `int` ranges the feasible capacity is `max - min + 1`.
+servers:
+  - url: http://localhost:5000
+    description: Local development server (Flask default)
+tags:
+  - name: Root
+  - name: Info
+  - name: Examples
+  - name: Generate
+paths:
+  "/":
+    get:
+      tags: [Root]
+      operationId: getHome
+      summary: API welcome and discovery
+      description: Returns a welcome message and the list of available endpoints.
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  endpoints:
+                    type: array
+                    items:
+                      type: string
+                required: [message, endpoints]
+              example:
+                message: Welcome to DataGen API
+                endpoints:
+                  - "/info"
+                  - "/example"
+                  - "/generate"
+
+  "/info":
+    get:
+      tags: [Info]
+      operationId: getInfo
+      summary: Get API metadata and capabilities
+      description: Describes supported data types, global parameters, output formats, and performance notes.
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfoResponse"
+              examples:
+                default:
+                  value:
+                    supported_data_types:
+                      string:
+                        description: Random string value
+                        parameters:
+                          pattern: Regex pattern for custom string generation (optional)
+                          unique: Boolean to ensure unique values (optional)
+                      int:
+                        description: Random integer value
+                        parameters:
+                          min: "Minimum value (default: 0)"
+                          max: "Maximum value (default: 100)"
+                          unique: Boolean to ensure unique values (optional)
+                      float:
+                        description: Random float value
+                        parameters:
+                          min: "Minimum value (default: 0)"
+                          max: "Maximum value (default: 100)"
+                          unique: Boolean to ensure unique values (optional)
+                      bool:
+                        description: Random boolean value
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      date:
+                        description: Random date value
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      uuid:
+                        description: Random UUID value
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      email:
+                        description: Random email address
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      name:
+                        description: Random full name (first + last)
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      first_name:
+                        description: Random first name
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      last_name:
+                        description: Random last name
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      text:
+                        description: Random text content
+                        parameters:
+                          length: "Maximum number of characters (default: 200)"
+                          unique: Boolean to ensure unique values (optional)
+                      username:
+                        description: Random username
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      password:
+                        description: Random password
+                        parameters:
+                          length: "Password length (default: 12)"
+                          unique: Boolean to ensure unique values (optional)
+                      city:
+                        description: Random city name
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      country:
+                        description: Random country name
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      zipcode:
+                        description: Random postal code
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      address:
+                        description: Random full address
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      phone:
+                        description: Random phone number
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      url:
+                        description: Random URL
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      ip:
+                        description: Random IPv4 address
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      price:
+                        description: Random price value (1.0 to 1000.0)
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                      credit_card:
+                        description: Random credit card number
+                        parameters:
+                          unique: Boolean to ensure unique values (optional)
+                    global_parameters:
+                      count: "Number of records to generate (default: 10, max: 10000)"
+                      format: "Output format (default: json)"
+                    supported_output_formats:
+                      - json
+                      - csv
+                      - xml
+                      - sql
+                      - html
+                    performance_notes:
+                      max_recommended_count: 10000
+                      unique_fields_impact: Fields with unique constraints may slow down generation
+                      format_impact: CSV and SQL formats are fastest for large datasets
+
+  "/example":
+    get:
+      tags: [Examples]
+      operationId: getExamples
+      summary: Get common schema examples
+      description: Returns sample request bodies for common use-cases.
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExampleResponse"
+              examples:
+                default:
+                  value:
+                    message: Example schema configurations for DataGen API
+                    examples:
+                      user_profile:
+                        description: Complete user profile with various field types
+                        count: 50
+                        format: json
+                        schema:
+                          user_id:
+                            type: int
+                            min: 1000
+                            max: 9999
+                            unique: true
+                          username:
+                            type: username
+                            unique: true
+                          email:
+                            type: email
+                            unique: true
+                          password:
+                            type: password
+                            length: 16
+                          first_name:
+                            type: first_name
+                          last_name:
+                            type: last_name
+                          full_name:
+                            type: name
+                            unique: true
+                          age:
+                            type: int
+                            min: 18
+                            max: 80
+                          bio:
+                            type: text
+                            length: 300
+                          is_active:
+                            type: bool
+                          signup_date:
+                            type: date
+                          last_login:
+                            type: date
+                          profile_uuid:
+                            type: uuid
+                            unique: true
+                      ecommerce_product:
+                        description: E-commerce product catalog
+                        count: 100
+                        format: csv
+                        schema:
+                          product_id:
+                            type: int
+                            min: 1
+                            max: 10000
+                            unique: true
+                          sku:
+                            type: string
+                            pattern: "[A-Z]{2}-[0-9]{4}-[A-Z]{2}"
+                            unique: true
+                          product_name:
+                            type: string
+                            pattern: "[A-Z][a-z]+ [A-Z][a-z]+"
+                          description:
+                            type: text
+                            length: 500
+                          price:
+                            type: price
+                          cost:
+                            type: float
+                            min: 5.0
+                            max: 200.0
+                          stock_quantity:
+                            type: int
+                            min: 0
+                            max: 1000
+                          category:
+                            type: string
+                            pattern: "(Electronics|Clothing|Books|Home|Sports)"
+                          is_featured:
+                            type: bool
+                          created_date:
+                            type: date
+                          product_url:
+                            type: url
+                      customer_order:
+                        description: Customer order with shipping information
+                        count: 75
+                        format: xml
+                        schema:
+                          order_id:
+                            type: int
+                            min: 100000
+                            max: 999999
+                            unique: true
+                          customer_email:
+                            type: email
+                            unique: true
+                          customer_name:
+                            type: name
+                          phone:
+                            type: phone
+                          shipping_address:
+                            type: address
+                          city:
+                            type: city
+                          state:
+                            type: string
+                            pattern: "[A-Z]{2}"
+                          zipcode:
+                            type: zipcode
+                          country:
+                            type: country
+                          order_total:
+                            type: float
+                            min: 10.0
+                            max: 2000.0
+                          tax_amount:
+                            type: float
+                            min: 0.0
+                            max: 200.0
+                          shipping_cost:
+                            type: float
+                            min: 0.0
+                            max: 50.0
+                          order_date:
+                            type: date
+                          estimated_delivery:
+                            type: date
+                          order_status:
+                            type: string
+                            pattern: "(Pending|Processing|Shipped|Delivered|Cancelled)"
+                          tracking_number:
+                            type: string
+                            pattern: "[A-Z]{2}[0-9]{9}[A-Z]{2}"
+                            unique: true
+                      system_log:
+                        description: System log entries with various data types
+                        count: 200
+                        format: sql
+                        schema:
+                          log_id:
+                            type: int
+                            min: 1
+                            max: 1000000
+                            unique: true
+                          timestamp:
+                            type: date
+                          level:
+                            type: string
+                            pattern: "(INFO|WARNING|ERROR|DEBUG|CRITICAL)"
+                          service:
+                            type: string
+                            pattern: "(web|api|database|auth|payment)"
+                          user_id:
+                            type: int
+                            min: 1
+                            max: 10000
+                          ip_address:
+                            type: ip
+                          user_agent:
+                            type: string
+                            pattern: 'Mozilla/[0-9.]+ \([^)]+\) [A-Za-z]+/[0-9.]+'
+                          request_url:
+                            type: url
+                          response_code:
+                            type: int
+                            min: 200
+                            max: 599
+                          response_time:
+                            type: float
+                            min: 0.01
+                            max: 10.0
+                          message:
+                            type: text
+                            length: 200
+                          session_id:
+                            type: uuid
+                          is_error:
+                            type: bool
+                      simple_contact:
+                        description: Simple contact list with basic fields
+                        count: 25
+                        format: html
+                        schema:
+                          id:
+                            type: int
+                            min: 1
+                            max: 1000
+                            unique: true
+                          name:
+                            type: name
+                          email:
+                            type: email
+                          phone:
+                            type: phone
+                          city:
+                            type: city
+                          notes:
+                            type: text
+                            length: 100
+
+  "/generate":
+    post:
+      tags: [Generate]
+      operationId: postGenerate
+      summary: Generate fake data from a schema
+      description: |
+        Generates up to 10,000 rows of fake data according to the schema passed in the request body.
+        The root object can include `count` and `format`, with all other properties treated as field definitions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateRequest"
+            examples:
+              minimal:
+                summary: Minimal JSON output
+                value:
+                  count: 5
+                  format: json
+                  id:
+                    type: int
+                    min: 1
+                    max: 10
+                  name:
+                    type: string
+              with_regex_unique:
+                summary: Regex pattern with uniqueness
+                value:
+                  count: 12
+                  format: csv
+                  sku:
+                    type: string
+                    pattern: "[A-Z]{3}-[0-9]{5}"
+                    unique: true
+                  price:
+                    type: float
+                    min: 1.99
+                    max: 99.99
+                  created_at:
+                    type: date
+              comprehensive:
+                summary: Comprehensive schema exercising most constraints
+                value:
+                  count: 50
+                  format: json
+                  user_id:
+                    type: int
+                    min: 1000
+                    max: 9999
+                    unique: true
+                  username:
+                    type: username
+                    unique: true
+                  email:
+                    type: email
+                    unique: true
+                  password:
+                    type: password
+                    length: 16
+                  full_name:
+                    type: name
+                  bio:
+                    type: text
+                    length: 140
+                  age:
+                    type: int
+                    min: 18
+                    max: 80
+                  state:
+                    type: string
+                    pattern: "[A-Z]{2}"
+                  url:
+                    type: url
+                  ip:
+                    type: ip
+      responses:
+        "200":
+          description: Data generated successfully
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              description: Attachment filename (sent for non-JSON formats)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateResponseJson"
+              examples:
+                sample:
+                  summary: JSON response example
+                  value:
+                    - id: 1
+                      name: "Alice"
+                      is_active: true
+                    - id: 2
+                      name: "Bob"
+                      is_active: false
+            text/csv:
+              schema:
+                type: string
+              examples:
+                sample:
+                  summary: CSV response example
+                  value: |
+                    id,name
+                    1,Alice
+                    2,Bob
+            application/xml:
+              schema:
+                type: string
+              examples:
+                sample:
+                  summary: XML response example
+                  value: |
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <data>
+                      <record>
+                        <id>1</id>
+                        <name>Alice</name>
+                      </record>
+                      <record>
+                        <id>2</id>
+                        <name>Bob</name>
+                      </record>
+                    </data>
+            text/plain:
+              schema:
+                type: string
+              examples:
+                sample:
+                  summary: SQL response example
+                  value: |
+                    INSERT INTO generated_data (id, name) VALUES (1, 'Alice');
+                    INSERT INTO generated_data (id, name) VALUES (2, 'Bob');
+            text/html:
+              schema:
+                type: string
+              examples:
+                sample:
+                  summary: HTML response example
+                  value: |
+                    <html>
+                      <body>
+                        <table border='1'>
+                          <thead><tr><th>id</th><th>name</th></tr></thead>
+                          <tbody>
+                            <tr><td>1</td><td>Alice</td></tr>
+                            <tr><td>2</td><td>Bob</td></tr>
+                          </tbody>
+                        </table>
+                      </body>
+                    </html>
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                RowLimitExceeded:
+                  summary: Count exceeds 10,000
+                  value:
+                    error: Count cannot exceed 10000 for performance reasons
+                UnsupportedFormat:
+                  value:
+                    error: "Unsupported format: yaml"
+                NoSchema:
+                  value:
+                    error: No schema fields provided
+                InvalidCountType:
+                  value:
+                    error: Count must be a positive integer
+                NoJSON:
+                  value:
+                    error: No JSON data provided
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    InfoResponse:
+      type: object
+      properties:
+        supported_data_types:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              description: {type: string}
+              parameters:
+                type: object
+                additionalProperties: {type: string}
+        global_parameters:
+          type: object
+          additionalProperties: {type: string}
+        supported_output_formats:
+          type: array
+          items:
+            type: string
+            enum:
+              - json
+              - csv
+              - xml
+              - sql
+              - html
+        performance_notes:
+          type: object
+          additionalProperties: {}
+      required: [supported_data_types, supported_output_formats]
+
+    ExampleResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        examples:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ExampleSet"
+      required: [examples]
+
+    ExampleSet:
+      type: object
+      properties:
+        description: {type: string}
+        count:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        format:
+          type: string
+          enum:
+            - json
+            - csv
+            - xml
+            - sql
+            - html
+        schema:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/FieldConfig"
+      required: [description, count, format, schema]
+
+    GenerateRequest:
+      type: object
+      description: |
+        Root-level properties `count` and `format` control generation. All other properties are treated as field definitions mapping to `FieldConfig`.
+        At least one field definition is required.
+      properties:
+        count:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          default: 10
+          description: Number of records to generate (max 10,000)
+        format:
+          type: string
+          enum:
+            - json
+            - csv
+            - xml
+            - sql
+            - html
+          default: json
+          description: Output format
+      additionalProperties:
+        $ref: "#/components/schemas/FieldConfig"
+
+    FieldConfig:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - string
+            - int
+            - float
+            - bool
+            - date
+            - uuid
+            - email
+            - name
+            - first_name
+            - last_name
+            - text
+            - username
+            - password
+            - city
+            - country
+            - zipcode
+            - address
+            - phone
+            - url
+            - ip
+            - price
+            - credit_card
+          description: Data type of the field
+        min:
+          type: number
+          description: Minimum value (applies to int/float)
+        max:
+          type: number
+          description: Maximum value (applies to int/float)
+        pattern:
+          type: string
+          description: Regular expression for string pattern generation (applies to type=string)
+        length:
+          type: integer
+          minimum: 1
+          description: Maximum length for text fields or exact length for passwords
+        unique:
+          type: boolean
+          description: Ensure generated values are unique (best-effort; may affect performance)
+      required: [type]
+
+    GenerateResponseJson:
+      type: array
+      items:
+        type: object
+        additionalProperties: {}
+
+
