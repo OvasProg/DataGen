@@ -1,8 +1,10 @@
 [build]
-  publish = "frontend"
+  publish = "."
+  command = ""
 
 [[redirects]]
   from = "/api/*"
-  to = "https://datagen-lx1m.onrender.com/:splat"   
+  to   = "https://datagen-lx1m.onrender.com/:splat"
   status = 200
   force = true
+  
