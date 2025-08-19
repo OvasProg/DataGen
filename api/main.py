@@ -1,11 +1,13 @@
 from flask import Flask, request, jsonify, Response, make_response
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 from data_generator import generate_mock_data
 from format_utils import convert_to_csv, convert_to_xml, convert_to_sql, convert_to_html
 import os
 
 def create_app():
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Production-friendly JSON behavior
     app.config["JSON_AS_ASCII"] = False
@@ -21,7 +23,6 @@ def create_app():
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("Referrer-Policy", "no-referrer")
         resp.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-        # CORS – allow your Netlify app origin via env var (fallback: *)
         allow_origin = os.getenv("CORS_ALLOW_ORIGIN", "*")
         resp.headers.setdefault("Access-Control-Allow-Origin", allow_origin)
         resp.headers.setdefault("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
@@ -35,9 +36,51 @@ def create_app():
             "endpoints": ["/healthz", "/info", "/example", "/generate"]
         })
 
-    @app.route("/healthz", methods=["GET"])
-    def healthz():
-        return jsonify({"status": "ok"}), 200
+    @app.route("/livez", methods=["GET", "HEAD"])
+    @app.route("/healthz", methods=["GET", "HEAD"])
+    def livez():
+        resp = Response("ok", mimetype="text/plain")
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        return resp, 200
+
+    # Readiness: quick sanity checks that dependencies we need to serve traffic are OK
+    @app.route("/readyz", methods=["GET", "HEAD"])
+    def readyz():
+        checks = {}
+        status_code = 200
+
+        try:
+            _ = (callable(convert_to_csv) and callable(convert_to_xml)
+                 and callable(convert_to_sql) and callable(convert_to_html))
+            checks["converters_loaded"] = True
+        except Exception:
+            checks["converters_loaded"] = False
+            status_code = 503
+        finally:
+            print(checks["converters_loaded"])
+
+        try:
+            # Tiny generate sanity check: 1 record, simple schema
+            # Keep it extremely light to avoid affecting hot paths.
+            sample = generate_mock_data({"ping": {"type": "int", "min": 1, "max": 1}}, 1)
+            checks["generator_works"] = bool(isinstance(sample, list) and len(sample) == 1)
+            if not checks["generator_works"]:
+                status_code = 503
+        except Exception:
+            checks["generator_works"] = False
+            status_code = 503
+        finally:
+            print(checks["generator_works"])
+
+        payload = {
+            "status": "ok" if status_code == 200 else "unhealthy",
+            "checks": checks
+        }
+
+        resp = jsonify(payload)
+        # Ensure these are never cached by proxies
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        return resp, status_code
 
     @app.route('/info', methods=['GET'])
     def get_info():
