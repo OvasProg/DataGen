@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: DataGen API
-  version: 1.0.0
+  version: 1.1.0
   summary: Fake data generator API
   description: |
     DataGen is a simple API that generates realistic fake datasets from a declarative schema.
@@ -11,13 +11,18 @@ info:
     - Supported output formats: json, csv, xml, html, sql
     - Uniqueness is best-effort and may slow down generation; for `int` ranges the feasible capacity is `max - min + 1`.
 servers:
-  - url: http://localhost:5000
-    description: Local development server (Flask default)
+  - url: https://datagen-lx1m.onrender.com
+    description: Production (Render)
+  - url: https://datagen-lx1m.netlify.app/api
+    description: Production (Netlify)
 tags:
   - name: Root
+  - name: Health
+  - name: Readiness
   - name: Info
   - name: Examples
   - name: Generate
+
 paths:
   "/":
     get:
@@ -43,9 +48,75 @@ paths:
               example:
                 message: Welcome to DataGen API
                 endpoints:
+                  - "/healthz"
                   - "/info"
                   - "/example"
                   - "/generate"
+
+  "/healthz":
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Liveness/health check
+      description: |
+        Lightweight liveness probe. Returns plain text "ok" when the process is up.
+        Also available at **/livez**.
+      responses:
+        "200":
+          description: Alive
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+
+  "/livez":
+    get:
+      tags: [Health]
+      operationId: getLivez
+      summary: Alias for /healthz
+      description: Returns plain text "ok" when the process is up.
+      responses:
+        "200":
+          description: Alive
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+
+  "/readyz":
+    get:
+      tags: [Readiness]
+      operationId: getReady
+      summary: Readiness probe with dependency checks
+      description: |
+        Performs lightweight sanity checks to ensure the service is ready to handle traffic.
+        Verifies converter functions are loaded and performs a tiny generate sanity check.
+        Returns HTTP 200 with status **ok** when ready; otherwise HTTP 503 with status **unhealthy**.
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyzResponse"
+              example:
+                status: ok
+                checks:
+                  converters_loaded: true
+                  generator_works: true
+        "503":
+          description: Unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyzResponse"
+              example:
+                status: unhealthy
+                checks:
+                  converters_loaded: true
+                  generator_works: false
 
   "/info":
     get:
@@ -196,198 +267,85 @@ paths:
                         count: 50
                         format: json
                         schema:
-                          user_id:
-                            type: int
-                            min: 1000
-                            max: 9999
-                            unique: true
-                          username:
-                            type: username
-                            unique: true
-                          email:
-                            type: email
-                            unique: true
-                          password:
-                            type: password
-                            length: 16
-                          first_name:
-                            type: first_name
-                          last_name:
-                            type: last_name
-                          full_name:
-                            type: name
-                            unique: true
-                          age:
-                            type: int
-                            min: 18
-                            max: 80
-                          bio:
-                            type: text
-                            length: 300
-                          is_active:
-                            type: bool
-                          signup_date:
-                            type: date
-                          last_login:
-                            type: date
-                          profile_uuid:
-                            type: uuid
-                            unique: true
+                          user_id: { type: int, min: 1000, max: 9999, unique: true }
+                          username: { type: username, unique: true }
+                          email: { type: email, unique: true }
+                          password: { type: password, length: 16 }
+                          first_name: { type: first_name }
+                          last_name: { type: last_name }
+                          full_name: { type: name, unique: true }
+                          age: { type: int, min: 18, max: 80 }
+                          bio: { type: text, length: 300 }
+                          is_active: { type: bool }
+                          signup_date: { type: date }
+                          last_login: { type: date }
+                          profile_uuid: { type: uuid, unique: true }
                       ecommerce_product:
                         description: E-commerce product catalog
                         count: 100
                         format: csv
                         schema:
-                          product_id:
-                            type: int
-                            min: 1
-                            max: 10000
-                            unique: true
-                          sku:
-                            type: string
-                            pattern: "[A-Z]{2}-[0-9]{4}-[A-Z]{2}"
-                            unique: true
-                          product_name:
-                            type: string
-                            pattern: "[A-Z][a-z]+ [A-Z][a-z]+"
-                          description:
-                            type: text
-                            length: 500
-                          price:
-                            type: price
-                          cost:
-                            type: float
-                            min: 5.0
-                            max: 200.0
-                          stock_quantity:
-                            type: int
-                            min: 0
-                            max: 1000
-                          category:
-                            type: string
-                            pattern: "(Electronics|Clothing|Books|Home|Sports)"
-                          is_featured:
-                            type: bool
-                          created_date:
-                            type: date
-                          product_url:
-                            type: url
+                          product_id: { type: int, min: 1, max: 10000, unique: true }
+                          sku: { type: string, pattern: "[A-Z]{2}-[0-9]{4}-[A-Z]{2}", unique: true }
+                          product_name: { type: string, pattern: "[A-Z][a-z]+ [A-Z][a-z]+" }
+                          description: { type: text, length: 500 }
+                          price: { type: price }
+                          cost: { type: float, min: 5.0, max: 200.0 }
+                          stock_quantity: { type: int, min: 0, max: 1000 }
+                          category: { type: string, pattern: "(Electronics|Clothing|Books|Home|Sports)" }
+                          is_featured: { type: bool }
+                          created_date: { type: date }
+                          product_url: { type: url }
                       customer_order:
                         description: Customer order with shipping information
                         count: 75
                         format: xml
                         schema:
-                          order_id:
-                            type: int
-                            min: 100000
-                            max: 999999
-                            unique: true
-                          customer_email:
-                            type: email
-                            unique: true
-                          customer_name:
-                            type: name
-                          phone:
-                            type: phone
-                          shipping_address:
-                            type: address
-                          city:
-                            type: city
-                          state:
-                            type: string
-                            pattern: "[A-Z]{2}"
-                          zipcode:
-                            type: zipcode
-                          country:
-                            type: country
-                          order_total:
-                            type: float
-                            min: 10.0
-                            max: 2000.0
-                          tax_amount:
-                            type: float
-                            min: 0.0
-                            max: 200.0
-                          shipping_cost:
-                            type: float
-                            min: 0.0
-                            max: 50.0
-                          order_date:
-                            type: date
-                          estimated_delivery:
-                            type: date
-                          order_status:
-                            type: string
-                            pattern: "(Pending|Processing|Shipped|Delivered|Cancelled)"
-                          tracking_number:
-                            type: string
-                            pattern: "[A-Z]{2}[0-9]{9}[A-Z]{2}"
-                            unique: true
+                          order_id: { type: int, min: 100000, max: 999999, unique: true }
+                          customer_email: { type: email, unique: true }
+                          customer_name: { type: name }
+                          phone: { type: phone }
+                          shipping_address: { type: address }
+                          city: { type: city }
+                          state: { type: string, pattern: "[A-Z]{2}" }
+                          zipcode: { type: zipcode }
+                          country: { type: country }
+                          order_total: { type: float, min: 10.0, max: 2000.0 }
+                          tax_amount: { type: float, min: 0.0, max: 200.0 }
+                          shipping_cost: { type: float, min: 0.0, max: 50.0 }
+                          order_date: { type: date }
+                          estimated_delivery: { type: date }
+                          order_status: { type: string, pattern: "(Pending|Processing|Shipped|Delivered|Cancelled)" }
+                          tracking_number: { type: string, pattern: "[A-Z]{2}[0-9]{9}[A-Z]{2}", unique: true }
                       system_log:
                         description: System log entries with various data types
                         count: 200
                         format: sql
                         schema:
-                          log_id:
-                            type: int
-                            min: 1
-                            max: 1000000
-                            unique: true
-                          timestamp:
-                            type: date
-                          level:
-                            type: string
-                            pattern: "(INFO|WARNING|ERROR|DEBUG|CRITICAL)"
-                          service:
-                            type: string
-                            pattern: "(web|api|database|auth|payment)"
-                          user_id:
-                            type: int
-                            min: 1
-                            max: 10000
-                          ip_address:
-                            type: ip
-                          user_agent:
-                            type: string
-                            pattern: 'Mozilla/[0-9.]+ \([^)]+\) [A-Za-z]+/[0-9.]+'
-                          request_url:
-                            type: url
-                          response_code:
-                            type: int
-                            min: 200
-                            max: 599
-                          response_time:
-                            type: float
-                            min: 0.01
-                            max: 10.0
-                          message:
-                            type: text
-                            length: 200
-                          session_id:
-                            type: uuid
-                          is_error:
-                            type: bool
+                          log_id: { type: int, min: 1, max: 1000000, unique: true }
+                          timestamp: { type: date }
+                          level: { type: string, pattern: "(INFO|WARNING|ERROR|DEBUG|CRITICAL)" }
+                          service: { type: string, pattern: "(web|api|database|auth|payment)" }
+                          user_id: { type: int, min: 1, max: 10000 }
+                          ip_address: { type: ip }
+                          user_agent: { type: string, pattern: 'Mozilla/[0-9.]+ \([^)]+\) [A-Za-z]+/[0-9.]+' }
+                          request_url: { type: url }
+                          response_code: { type: int, min: 200, max: 599 }
+                          response_time: { type: float, min: 0.01, max: 10.0 }
+                          message: { type: text, length: 200 }
+                          session_id: { type: uuid }
+                          is_error: { type: bool }
                       simple_contact:
                         description: Simple contact list with basic fields
                         count: 25
                         format: html
                         schema:
-                          id:
-                            type: int
-                            min: 1
-                            max: 1000
-                            unique: true
-                          name:
-                            type: name
-                          email:
-                            type: email
-                          phone:
-                            type: phone
-                          city:
-                            type: city
-                          notes:
-                            type: text
-                            length: 100
+                          id: { type: int, min: 1, max: 1000, unique: true }
+                          name: { type: name }
+                          email: { type: email }
+                          phone: { type: phone }
+                          city: { type: city }
+                          notes: { type: text, length: 100 }
 
   "/generate":
     post:
@@ -409,62 +367,31 @@ paths:
                 value:
                   count: 5
                   format: json
-                  id:
-                    type: int
-                    min: 1
-                    max: 10
-                  name:
-                    type: string
+                  id: { type: int, min: 1, max: 10 }
+                  name: { type: string }
               with_regex_unique:
                 summary: Regex pattern with uniqueness
                 value:
                   count: 12
                   format: csv
-                  sku:
-                    type: string
-                    pattern: "[A-Z]{3}-[0-9]{5}"
-                    unique: true
-                  price:
-                    type: float
-                    min: 1.99
-                    max: 99.99
-                  created_at:
-                    type: date
+                  sku: { type: string, pattern: "[A-Z]{3}-[0-9]{5}", unique: true }
+                  price: { type: float, min: 1.99, max: 99.99 }
+                  created_at: { type: date }
               comprehensive:
                 summary: Comprehensive schema exercising most constraints
                 value:
                   count: 50
                   format: json
-                  user_id:
-                    type: int
-                    min: 1000
-                    max: 9999
-                    unique: true
-                  username:
-                    type: username
-                    unique: true
-                  email:
-                    type: email
-                    unique: true
-                  password:
-                    type: password
-                    length: 16
-                  full_name:
-                    type: name
-                  bio:
-                    type: text
-                    length: 140
-                  age:
-                    type: int
-                    min: 18
-                    max: 80
-                  state:
-                    type: string
-                    pattern: "[A-Z]{2}"
-                  url:
-                    type: url
-                  ip:
-                    type: ip
+                  user_id: { type: int, min: 1000, max: 9999, unique: true }
+                  username: { type: username, unique: true }
+                  email: { type: email, unique: true }
+                  password: { type: password, length: 16 }
+                  full_name: { type: name }
+                  bio: { type: text, length: 140 }
+                  age: { type: int, min: 18, max: 80 }
+                  state: { type: string, pattern: "[A-Z]{2}" }
+                  url: { type: url }
+                  ip: { type: ip }
       responses:
         "200":
           description: Data generated successfully
@@ -543,28 +470,11 @@ paths:
                       </body>
                     </html>
         "400":
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                RowLimitExceeded:
-                  summary: Count exceeds 10,000
-                  value:
-                    error: Count cannot exceed 10000 for performance reasons
-                UnsupportedFormat:
-                  value:
-                    error: "Unsupported format: yaml"
-                NoSchema:
-                  value:
-                    error: No schema fields provided
-                InvalidCountType:
-                  value:
-                    error: Count must be a positive integer
-                NoJSON:
-                  value:
-                    error: No JSON data provided
+          $ref: "#/components/responses/BadRequest"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "500":
+          $ref: "#/components/responses/ServerError"
 
 components:
   schemas:
@@ -583,23 +493,18 @@ components:
           additionalProperties:
             type: object
             properties:
-              description: {type: string}
+              description: { type: string }
               parameters:
                 type: object
-                additionalProperties: {type: string}
+                additionalProperties: { type: string }
         global_parameters:
           type: object
-          additionalProperties: {type: string}
+          additionalProperties: { type: string }
         supported_output_formats:
           type: array
           items:
             type: string
-            enum:
-              - json
-              - csv
-              - xml
-              - sql
-              - html
+            enum: [json, csv, xml, sql, html]
         performance_notes:
           type: object
           additionalProperties: {}
@@ -619,19 +524,14 @@ components:
     ExampleSet:
       type: object
       properties:
-        description: {type: string}
+        description: { type: string }
         count:
           type: integer
           minimum: 1
           maximum: 10000
         format:
           type: string
-          enum:
-            - json
-            - csv
-            - xml
-            - sql
-            - html
+          enum: [json, csv, xml, sql, html]
         schema:
           type: object
           additionalProperties:
@@ -652,12 +552,7 @@ components:
           description: Number of records to generate (max 10,000)
         format:
           type: string
-          enum:
-            - json
-            - csv
-            - xml
-            - sql
-            - html
+          enum: [json, csv, xml, sql, html]
           default: json
           description: Output format
       additionalProperties:
@@ -716,4 +611,53 @@ components:
         type: object
         additionalProperties: {}
 
+    ReadyzResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, unhealthy]
+        checks:
+          type: object
+          properties:
+            converters_loaded:
+              type: boolean
+            generator_works:
+              type: boolean
+          additionalProperties: false
+      required: [status, checks]
 
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            RowLimitExceeded:
+              value: { error: "Count cannot exceed 10000 for performance reasons" }
+            UnsupportedFormat:
+              value: { error: "Unsupported format: yaml" }
+            NoSchema:
+              value: { error: "No schema fields provided" }
+            InvalidCountType:
+              value: { error: "Count must be a positive integer" }
+            NoJSON:
+              value: { error: "No JSON data provided" }
+    PayloadTooLarge:
+      description: Payload too large
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: Payload too large
+    ServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: Unexpected server error
