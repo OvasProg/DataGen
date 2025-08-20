@@ -1,22 +1,20 @@
 from flask import Flask, request, jsonify, Response, make_response
 from werkzeug.exceptions import HTTPException
-from werkzeug.middleware.proxy_fix import ProxyFix
 from data_generator import generate_mock_data
 from format_utils import convert_to_csv, convert_to_xml, convert_to_sql, convert_to_html
 import os
 
 def create_app():
     app = Flask(__name__)
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-    # Production-friendly JSON behavior
+    # Predictable JSON behavior
     app.config["JSON_AS_ASCII"] = False
     app.config["JSON_SORT_KEYS"] = False
 
     # Request limits (16 MB)
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-    # --- Simple security headers on every response ---
+    # Security headers on every response
     @app.after_request
     def set_security_headers(resp):
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -26,7 +24,7 @@ def create_app():
         allow_origin = os.getenv("CORS_ALLOW_ORIGIN", "*")
         resp.headers.setdefault("Access-Control-Allow-Origin", allow_origin)
         resp.headers.setdefault("Access-Control-Allow-Methods", "GET,POST")
-        resp.headers.setdefault("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        resp.headers.setdefault("Access-Control-Allow-Headers", "Content-Type")
         return resp
 
     @app.route("/", methods=["GET"])
@@ -36,6 +34,7 @@ def create_app():
             "endpoints": ["/healthz", "/readyz", "/info", "/example", "/generate"]
         })
 
+    # Liveness: tells if the app process is up and running
     @app.route("/livez", methods=["GET", "HEAD"])
     @app.route("/healthz", methods=["GET", "HEAD"])
     def livez():
@@ -43,7 +42,7 @@ def create_app():
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         return resp, 200
 
-    # Readiness: quick sanity checks that dependencies we need to serve traffic are OK
+    # Readiness: checks if dependencies are OK and app can serve traffic
     @app.route("/readyz", methods=["GET", "HEAD"])
     def readyz():
         checks = {}
@@ -60,8 +59,7 @@ def create_app():
             print(checks["converters_loaded"])
 
         try:
-            # Tiny generate sanity check: 1 record, simple schema
-            # Keep it extremely light to avoid affecting hot paths.
+            # Tiny generation check: 1 record, simple schema
             sample = generate_mock_data({"ping": {"type": "int", "min": 1, "max": 1}}, 1)
             checks["generator_works"] = bool(isinstance(sample, list) and len(sample) == 1)
             if not checks["generator_works"]:
@@ -114,6 +112,7 @@ def create_app():
             "performance_notes": {"max_recommended_count": 10000, "unique_fields_impact": "Fields with unique constraints may slow down generation", "format_impact": "CSV and SQL formats are fastest for large datasets"}
         })
 
+    # Example schemas
     @app.route('/example', methods=['GET'])
     def get_example():
         return jsonify({
@@ -198,7 +197,6 @@ def create_app():
 
     @app.route('/generate', methods=['POST', 'OPTIONS'])
     def generate():
-        # Handle CORS preflight quickly
         if request.method == 'OPTIONS':
             return make_response(('', 204))
 
@@ -225,6 +223,7 @@ def create_app():
             data = generate_mock_data(schema, count)
 
             fmt = str(out_format).lower()
+            # Preparing format chosen by user
             if fmt == "json":
                 return jsonify(data), 200
             elif fmt == "csv":
@@ -247,10 +246,8 @@ def create_app():
                 return jsonify({"error": f"Unsupported format: {out_format}"}), 400
 
         except Exception as e:
-            # Generic catch: emit safe message; logs in server
             return jsonify({"error": "Request failed"}), 400
 
-    # Friendly errors (incl. 413 from MAX_CONTENT_LENGTH)
     @app.errorhandler(413)
     def too_large(_e):
         return jsonify({"error": "Payload too large"}), 413
@@ -265,9 +262,7 @@ def create_app():
 
     return app
 
-# WSGI entrypoint for Gunicorn, etc.
 app = create_app()
 
 if __name__ == "__main__":
-    # Dev-only run. Use Gunicorn in production.
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
