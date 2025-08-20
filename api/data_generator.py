@@ -5,7 +5,7 @@ import rstr
 faker = Faker()
 
 def ensure_unique(field, value, generator_func, unique_fields, max_retries=100):
-    """Optimized uniqueness checking with retry limit"""
+    """Uniqueness checking with retry limit"""
     if field not in unique_fields:
         return value
     
@@ -82,7 +82,7 @@ def generate_mock_data(schema: dict, count: int = 10):
     for field, config in schema.items():
         if config.get("unique"):
             field_type = config.get("type", "string")
-            config["field_name"] = field  # Add field name for reference
+            config["field_name"] = field
             pre_generated = generate_unique_values(field_type, config, count, unique_fields)
             if pre_generated:
                 pre_generated_values[field] = pre_generated
