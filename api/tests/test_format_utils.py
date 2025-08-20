@@ -32,7 +32,7 @@ def test_convert_to_html_basic():
     html_text = convert_to_html(SAMPLE)
     assert "<table" in html_text and "</table>" in html_text
     assert "<th>id</th>" in html_text and "<th>name</th>" in html_text
-    # Two data rows
-    assert html_text.count("<tr>") >= 3  # header row + 2 data rows
+    # header + 2 rows
+    assert html_text.count("<tr>") >= 3
 
 
