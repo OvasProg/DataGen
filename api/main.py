@@ -25,7 +25,7 @@ def create_app():
         resp.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
         allow_origin = os.getenv("CORS_ALLOW_ORIGIN", "*")
         resp.headers.setdefault("Access-Control-Allow-Origin", allow_origin)
-        resp.headers.setdefault("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        resp.headers.setdefault("Access-Control-Allow-Methods", "GET,POST")
         resp.headers.setdefault("Access-Control-Allow-Headers", "Content-Type,Authorization")
         return resp
 
@@ -33,7 +33,7 @@ def create_app():
     def home():
         return jsonify({
             "message": "Welcome to DataGen API",
-            "endpoints": ["/healthz", "/info", "/example", "/generate"]
+            "endpoints": ["/healthz", "/readyz", "/info", "/example", "/generate"]
         })
 
     @app.route("/livez", methods=["GET", "HEAD"])
