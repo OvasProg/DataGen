@@ -1,15 +1,5 @@
 # DataGen
 
-🚀 **[Live Demo](https://datagen-lx1m.netlify.app/)**  
-Visit the demo website to explore the API with an interactive **Swagger UI**.  
-On the site, you’ll find full documentation about available endpoints and data types.  
-You can also send live requests directly through the Swagger interface at:
-
-- **Website:** `https://datagen-lx1m.netlify.app/api`
-- **API root:** `https://datagen-lx1m.onrender.com/`
-
----
-
 **DataGen** is a flexible fake data generation API designed for developers who need realistic test data quickly. Define your own schema, set constraints, and choose from multiple output formats — all with a single API call.
 
 ## ✨ Features
